@@ -1,0 +1,107 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[noadjust]{cite}
+\usepackage{setspace}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{dcolumn}
+\usepackage[english]{babel}
+\geometry{margin=1in}
+
+
+\title{New Analysis}
+\author{Bora Ozaltun}
+
+\doublespacing
+
+\begin{document}
+
+% Table created by stargazer v.5.2.2 by Marek Hlavac, Harvard University. E-mail: hlavac at fas.harvard.edu
+% Date and time: Wed, Apr 15, 2020 - 12:00:12
+% Requires LaTeX packages: dcolumn
+\begin{table}[!htbp] \centering
+  \caption{All counties}
+  \label{}
+\begin{tabular}{@{\extracolsep{-10pt}}lD{.}{.}{-6} D{.}{.}{-6} D{.}{.}{-6} }
+\\[-1.8ex]\hline
+\hline \\[-1.8ex]
+ & \multicolumn{3}{c}{\textit{Dependent variable:}} \\
+\cline{2-4}
+\\[-1.8ex] & \multicolumn{1}{c}{log(Deaths)} & \multicolumn{1}{c}{Deaths per Capita} & \multicolumn{1}{c}{log(Deaths)} \\
+\\[-1.8ex] & \multicolumn{1}{c}{(1)} & \multicolumn{1}{c}{(2)} & \multicolumn{1}{c}{(3)}\\
+\hline \\[-1.8ex]
+ mean\_pm25 & 0.042876^{**} & 0.000002 & 0.021170 \\
+  & (0.016863) & (0.000002) & (0.014372) \\
+  & & & \\
+\hline \\[-1.8ex]
+Controls + FE & X & X & X \\
+Transportation &  &  & X \\
+Observations & \multicolumn{1}{c}{3,087} & \multicolumn{1}{c}{3,087} & \multicolumn{1}{c}{3,087} \\
+R$^{2}$ & \multicolumn{1}{c}{0.666357} & \multicolumn{1}{c}{0.200231} & \multicolumn{1}{c}{0.707402} \\
+Adjusted R$^{2}$ & \multicolumn{1}{c}{0.657021} & \multicolumn{1}{c}{0.177853} & \multicolumn{1}{c}{0.698713} \\
+\hline
+\hline \\[-1.8ex]
+\textit{Note:}  & \multicolumn{3}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\
+\end{tabular}
+\end{table}
+
+% Table created by stargazer v.5.2.2 by Marek Hlavac, Harvard University. E-mail: hlavac at fas.harvard.edu
+% Date and time: Wed, Apr 15, 2020 - 12:00:12
+% Requires LaTeX packages: dcolumn
+\begin{table}[!htbp] \centering
+  \caption{Counties with deaths}
+  \label{}
+\begin{tabular}{@{\extracolsep{-10pt}}lD{.}{.}{-6} D{.}{.}{-6} D{.}{.}{-6} }
+\\[-1.8ex]\hline
+\hline \\[-1.8ex]
+ & \multicolumn{3}{c}{\textit{Dependent variable:}} \\
+\cline{2-4}
+\\[-1.8ex] & \multicolumn{1}{c}{log(Deaths)} & \multicolumn{1}{c}{Deaths per Capita} & \multicolumn{1}{c}{log(Deaths)} \\
+\\[-1.8ex] & \multicolumn{1}{c}{(1)} & \multicolumn{1}{c}{(2)} & \multicolumn{1}{c}{(3)}\\
+\hline \\[-1.8ex]
+ mean\_pm25 & 0.080558^{***} & 0.000007 & 0.049898 \\
+  & (0.029694) & (0.000004) & (0.030252) \\
+  & & & \\
+\hline \\[-1.8ex]
+Controls + FE & X & X & X \\
+Transportation &  &  & X \\
+Observations & \multicolumn{1}{c}{992} & \multicolumn{1}{c}{992} & \multicolumn{1}{c}{992} \\
+R$^{2}$ & \multicolumn{1}{c}{0.746507} & \multicolumn{1}{c}{0.422585} & \multicolumn{1}{c}{0.761035} \\
+Adjusted R$^{2}$ & \multicolumn{1}{c}{0.725452} & \multicolumn{1}{c}{0.374625} & \multicolumn{1}{c}{0.739764} \\
+\hline
+\hline \\[-1.8ex]
+\textit{Note:}  & \multicolumn{3}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\
+\end{tabular}
+\end{table}
+
+% Table created by stargazer v.5.2.2 by Marek Hlavac, Harvard University. E-mail: hlavac at fas.harvard.edu
+% Date and time: Wed, Apr 15, 2020 - 12:00:12
+% Requires LaTeX packages: dcolumn
+\begin{table}[!htbp] \centering
+  \caption{Counties with deaths and not New York City}
+  \label{}
+\begin{tabular}{@{\extracolsep{-10pt}}lD{.}{.}{-6} D{.}{.}{-6} D{.}{.}{-6} }
+\\[-1.8ex]\hline
+\hline \\[-1.8ex]
+ & \multicolumn{3}{c}{\textit{Dependent variable:}} \\
+\cline{2-4}
+\\[-1.8ex] & \multicolumn{1}{c}{log(Deaths)} & \multicolumn{1}{c}{Deaths per Capita} & \multicolumn{1}{c}{log(Deaths)} \\
+\\[-1.8ex] & \multicolumn{1}{c}{(1)} & \multicolumn{1}{c}{(2)} & \multicolumn{1}{c}{(3)}\\
+\hline \\[-1.8ex]
+ mean\_pm25 & 0.076147^{**} & 0.000003 & 0.049070 \\
+  & (0.029105) & (0.000003) & (0.029842) \\
+  & & & \\
+\hline \\[-1.8ex]
+Controls + FE & X & X & X \\
+Transportation &  &  & X \\
+Observations & \multicolumn{1}{c}{991} & \multicolumn{1}{c}{991} & \multicolumn{1}{c}{991} \\
+R$^{2}$ & \multicolumn{1}{c}{0.740388} & \multicolumn{1}{c}{0.432014} & \multicolumn{1}{c}{0.753884} \\
+Adjusted R$^{2}$ & \multicolumn{1}{c}{0.718801} & \multicolumn{1}{c}{0.384785} & \multicolumn{1}{c}{0.731953} \\
+\hline
+\hline \\[-1.8ex]
+\textit{Note:}  & \multicolumn{3}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\
+\end{tabular}
+\end{table} 
+
+\end{document}

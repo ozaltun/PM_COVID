@@ -1,0 +1,224 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+This R notebook will detail a qualitative and quantitative review of the *Exposure to air pollution and COVID-19 mortality in the United States* by Xiao Wu, Rachel C. Nethery, M. Benjamin Sabath, Danielle Braun, and Francesca
+Dominici. The paper studies the relationship between long-term $PM_{2.5}$ exposure and COVID-19 deaths. The study uses uses county level COVID-19 data (deaths and cases), historical spatiotemporal $PM_{2.5}$ data, as well as several other datasets that the authors use as control and FE variables.
+
+The authors use a zero-inflated negative binomial mixed model to estimate the relationship between $PM_{2.5}$ and COVID-19 deaths. The results claim that an increase of 1$\mu g/m^3$ of $PM_{2.5}$ leads to a large increase in COVID-19 death rate. This is quite a significant claim, since it clearly states a causal relationship between long term $PM_{2.5}$ exposure and increased likelihood of death from COVID-19. Professor Dominici (the lead author on the paper) was quoted by National Geographic that ``If you’re getting COVID, and you have been breathing polluted air, it’s really putting gasoline on a fire". The authors released all their code and the data they use for the analysis on a GitHub repository: https://github.com/wxwx1993/PM_COVID (yay to open source research!!).
+
+The single biggest problem with this paper that pollution is endogeneous. Controlling for confounding variables does not make the relationship causal. This is the reason for methods such as Instrumental Variables, Difference-in-Difference, Regression Discontinuity, and many others I will not name here. The study has been widely cited in news articles and has been mostly accepted to be rigorous in results.
+
+First, we can go over zero-inflated negative binomial mixed models. A nice introduction to such models can be found in: Foundations of Linear and Generalized Linear Models by Alan Agresti. It is under the umbrella of count data and utilizes poisson distributions. One of the issues of using poisson distributions is what is called overdispersion: the variance can often be larger then the median, but this is an issue since the poisson distribution has $\mu = \sigma^2$. To allow for some flexibility, one can use a gamma mixture of poissons which would result in a negative binomial. For count data where we might expect a bimodal distribution, centered around 0 and some other value, we can use a zero-inflated model that assumes the data will be 0 with some probability $\phi$ and some distribution with probability $1-\phi$. If we take this distribution to be negative binomial, the result will be a zero-inflated negative binomial mixed models
+
+Even though the conclusions drawn from the results by the authors are questionable, the analysis run shows a strong correlation between $PM_{2.5}$ and COVID-19 deaths. Such a significant correlation is still quite interesting. In this notebook, I will go over these results to see how robust they are. Initially, I will go over their models and equations and then I will abstract away from the zero-inflated negative binomial mixed model as my familiarity with it has been detailed above and I am not comfortable playing around with it. 
+
+First, I have added a couple lines to the end of the preprocessing file to add some additional variables that will be used in the analysis (feel free to look at this on ozaltun/PM_COVID - forked repository from wxwx1993).
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+library("tidyr")
+library("pscl")
+library("MASS")
+library(NBZIMM)
+library("lfe")
+library("lme4")
+library("stargazer")
+
+source('Preprocessing_v2.R')
+
+```
+
+Now lets run the main analysis that the paper runs:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# main analysis
+glmm.zinb.off = glmm.zinb(fixed = Deaths ~ mean_pm25 +scale(poverty) + scale(popdensity)  +scale(medianhousevalue) 
+                          +scale(medhouseholdincome) + scale(pct_owner_occ)  +scale(hispanic) 
+                          +scale(education)  +scale(pct_blk) + scale(older_pecent) 
+                          + scale(totalTestResults) + 
+                            + scale(beds) 
+                          + scale(mean_bmi) + scale(smoke_rate)
+                          + scale(mean_summer_temp) + scale(mean_winter_temp) + scale(mean_summer_rm) + scale(mean_winter_rm)
+                          + offset(log(population)), 
+                          random = ~ 1 | state, data = (aggregate_pm_census_cdc_test_beds))
+
+```
+
+We can look at the Estimate and the 95% CI of $PM_{2.5}$:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+intervals(glmm.zinb.off, level=0.95)$fixed[2,]
+```
+
+As shown in the paper, the correlation between $PM_{2.5}$ in this setup is large and significant. One aspect I find to be misleading in this paper is that they discuss that they use data from 3088 counties, but don't mention how many counties their main analysis is run on:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+cat("N: ", glmm.zinb.off$dims$N)
+```
+
+1793 counties is much less then 3088. The variables that have large missing values: county level ICU beds, mean BMI, and Smoke Rate variables. When we run the analysis withouth these control variables:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# main analysis
+glmm.zinb.counties = glmm.zinb(fixed = Deaths ~ mean_pm25 +scale(poverty) + scale(popdensity)  +scale(medianhousevalue) 
+                          +scale(medhouseholdincome) + scale(pct_owner_occ)  +scale(hispanic) 
+                          +scale(education)  +scale(pct_blk) + scale(older_pecent) 
+                          + scale(totalTestResults)
+                          + scale(mean_summer_temp) + scale(mean_winter_temp) + scale(mean_summer_rm) 
+                          + scale(mean_winter_rm)
+                          + offset(log(population)), 
+                          random = ~ 1 | state, data = (aggregate_pm_census_cdc_test_beds)) 
+                          
+cat('5%, Estimate, 95%:',intervals(glmm.zinb.counties, level=0.95)$fixed[2,], '\n')
+cat("N: ", glmm.zinb.counties$dims$N)
+```
+
+The results are still significant, but the point estimate decreased by ~%33 when we took out three control variables. This is a bit counter intuitive, since we would expect these control variables to attenuate the correlation of mean $PM_{2.5}$. Note that in their robustness checks, they remove (smoking + bmi) OR beds, which increases the number of counties to approximately 2300. Still around 800 short.
+
+Next, we can play around with the model structure. First, due to familiarity, we can use a linear regression with a large dummy-variable set . Second, we can introduce new variables: (1) County level public transportation data, (2) Methods of understanding the temporal dimension of the analysis. Lastly, we will determine a dictionary of transformations that we think are appropriate for the problem setting. In order to better understand the temporal dimension, we will do two things: (1) Add first week of case and first week of death fixed effects, (2) Look at how the estimate has changed since the Harvard study has been released.
+
+The two main structures that will be looked at are:
+$$ log(Deaths_i) = \beta_0 + \beta_1 PM_{2.5, i} + Controls_i + FEs_i + \epsilon_i$$
+
+$$ Deaths_i/pop_i = \beta_0 + \beta_1 PM_{2.5, i} + Controls_i + FEs_i + \epsilon_i$$
+
+Below we run three regressions: (1) baseline regression, (2) changing the y variable to be deaths per capita, (3) adding transportation controls.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Initial FE setup
+output.new.1 <- felm(log(Deaths+1) ~ mean_pm25+scale(poverty) +scale(medianhousevalue) 
+                     + scale(pct_owner_occ)  +scale(hispanic) 
+                     + scale(pct_blk) + scale(older_pecent)
+                     + scale(mean_summer_temp) + scale(mean_winter_temp) + scale(mean_summer_rm) + scale(mean_winter_rm)
+                     + scale(totalTestResults)
+                     + log(population)|factor(q_popdensity) +state+factor(first_case_week)+ factor(education_bins)+ factor(income_bins)  |0|state, cmethod="reghdfe", data = df)
+
+# Looking at deaths per capita
+df <- df %>% mutate(old_deaths_per_capita = (X4.7.20/population))
+output.new.2 <- felm(old_deaths_per_capita ~ mean_pm25+WRK_Drive +WRK_PublicTransit +WRK_Bike +WRK_Walk +WRKHOME+scale(poverty) +scale(medianhousevalue) 
+                     + scale(pct_owner_occ)  +scale(hispanic) 
+                     + scale(pct_blk) + scale(older_pecent)
+                     + scale(mean_summer_temp) + scale(mean_winter_temp) + scale(mean_summer_rm) + scale(mean_winter_rm)
+                     + scale(totalTestResults)|factor(q_popdensity) +state+factor(first_case_week)+ factor(education_bins)+ factor(income_bins)  |0|state, cmethod="reghdfe", data = df)
+
+
+
+# Incorporating transportation method
+output.new.3 <- felm(log(Deaths+1) ~ mean_pm25
+                     +WRK_Drive +WRK_PublicTransit +WRK_Bike +WRK_Walk +WRKHOME
+                     + scale(poverty) +scale(medianhousevalue) 
+                     + scale(pct_owner_occ)  +scale(hispanic) + scale(pct_blk) + scale(older_pecent)
+                     + scale(mean_summer_temp) + scale(mean_winter_temp) + scale(mean_summer_rm) + scale(mean_winter_rm)
+                     + scale(totalTestResults)
+                     + log(population)
+                     |factor(q_popdensity) + state + factor(first_case_week)+ factor(education_bins)+ factor(income_bins)  
+                     |0|state, cmethod="reghdfe", data = df)
+
+# Incorporating population
+output.new.4 <- felm(log(Deaths+1) ~ weighted_mean_pm25
+                     +WRK_Drive +WRK_PublicTransit +WRK_Bike +WRK_Walk +WRKHOME
+                     + scale(poverty) +scale(medianhousevalue) 
+                     + scale(pct_owner_occ)  +scale(hispanic) + scale(pct_blk) + scale(older_pecent)
+                     + scale(mean_summer_temp) + scale(mean_winter_temp) + scale(mean_summer_rm) + scale(mean_winter_rm)
+                     + scale(totalTestResults)
+                     + log(population)
+                     |factor(q_popdensity) + state + factor(first_case_week)+ factor(education_bins)+ factor(income_bins)  
+                     |0|state, cmethod="reghdfe", data = df)
+
+```
+
+
+```{r results='asis'}
+
+
+stargazer(output.new.1, output.new.3, output.new.4, output.new.2, title= "All counties", keep=c("mean_pm25", "weighted_mean_pm25"), omit.stat = c("LL","ser","f","rsq"), style = "qje"
+          , dep.var.labels=c("log(Deaths)", "Deaths per Capita"), digits.extra=5
+          , add.lines=list(c("Controls + FE", "X", "X","X", "X"), c("Transportation", "","X", "X","X")), type='html')
+
+
+```
+Since there are many counties with 0 deaths, we have to +1 to the Deaths variable which causes some issues with the results. Instead we can use a hsin transformation that has been shown to be an unbiased transformation:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Ideal regression
+output.new.4 <- felm(log(Deaths + (Deaths^2+1)^0.5) ~ mean_pm25+WRK_Drive +WRK_PublicTransit +WRK_Bike +WRK_Walk +WRKHOME+poverty +medianhousevalue + pct_owner_occ  +hispanic + pct_blk +older_pecent+ mean_summer_temp + mean_winter_temp + mean_summer_rm + mean_winter_rm + totalTestResults+ log(population)|factor(q_popdensity) +factor(first_case_week) + factor(state)+ factor(education_bins)+ factor(income_bins)  |0|popdensity_bins, cmethod="reghdfe", data = df)
+```
+
+
+```{r results='asis'}
+
+stargazer(output.new.4, title= "Counties with Death>0", keep=c("mean_pm25"), omit.stat = c("LL","ser","f","rsq"), style = "qje"
+          , dep.var.labels=c("hsin(Deaths)")
+          , add.lines=list(c("Controls + FE", "X"), c("Transportation","X")), type='html')
+```
+
+Next, we want to better understand how day dependent our result is. Additionally, lets look at how this estimate has changed over time for the main analysis in the Harvard study:
+```{r echo=TRUE, fig.width=8, message=FALSE, warning=FALSE}
+library("tidyverse")
+coef_list <- c()
+lb_list<- c()
+ub_list<-c()
+
+for(date in time_series_columns){
+  eq <- paste(date,"~ mean_pm25 +scale(poverty) + scale(popdensity)  +scale(medianhousevalue) +scale(medhouseholdincome) + scale(pct_owner_occ)  +scale(hispanic) +scale(education)  +scale(pct_blk) + scale(older_pecent) + scale(totalTestResults) + scale(beds) + scale(mean_bmi) + scale(smoke_rate)+ scale(mean_summer_temp) + scale(mean_winter_temp) + scale(mean_summer_rm) + scale(mean_winter_rm)+ offset(log(population))")
+  glmm.zinb.off = glmm.zinb(fixed =as.formula(eq), random = ~ 1 | state, data =df)
+  
+  temp_list <- intervals(glmm.zinb.off, level=0.95)$fixed[2,]
+  coef_list <- c(coef_list,temp_list[2])
+  lb_list <- c(lb_list, temp_list[1])
+  ub_list <- c(ub_list, temp_list[3])
+}
+
+
+time_series_estimate <- data.frame(est = coef_list,
+                                   lb = lb_list,
+                                   ub = ub_list, 
+                                   model = time_series_columns)
+time_series_estimate$model <- factor(time_series_estimate$model, levels = time_series_estimate$model)
+
+ggplot(time_series_estimate, aes(x = model, y = est)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = lb, ymax = ub), width = 0.1) +
+  xlab("") +
+  ylab("Historical predictor")
+
+
+
+```
+
+
+We can do the same with the analysis we ran:
+```{r echo=TRUE, fig.width=8, message=FALSE, warning=FALSE}
+library("tidyverse")
+coef_list <- c()
+lb_list<- c()
+ub_list<-c()
+
+for(date in time_series_columns){
+  eq <- paste0("log(",date," + (",date,"^2+1)^0.5) ~ mean_pm25+WRK_Drive +WRK_PublicTransit +WRK_Bike +WRK_Walk +WRKHOME+poverty +medianhousevalue + pct_owner_occ  +hispanic + pct_blk +older_pecent+ mean_summer_temp + mean_winter_temp + mean_summer_rm + mean_winter_rm + totalTestResults+ log(population)|factor(q_popdensity) +factor(first_case_week) + factor(state)+ factor(education_bins)+ factor(income_bins)  |0|state")
+  
+  output.new.temp <- felm(as.formula(eq), cmethod="reghdfe", data = df)
+  coef_list <- c(coef_list,coef(output.new.temp)["mean_pm25"])
+  lb_list <- c(lb_list, confint(output.new.temp, level = 0.95)["mean_pm25", ][1])
+  ub_list <- c(ub_list, confint(output.new.temp, level = 0.95)["mean_pm25", ][2])
+}
+
+
+time_series_estimate <- data.frame(est = coef_list,
+                                   lb = lb_list,
+                                   ub = ub_list, 
+                                   model = time_series_columns)
+time_series_estimate$model <- factor(time_series_estimate$model, levels = time_series_estimate$model)
+
+ggplot(time_series_estimate, aes(x = model, y = est)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = lb, ymax = ub), width = 0.1) +
+  xlab("") +
+  ylab("Historical predictor")
+
+```
+
+
+To conclude, there are three main issues with the model setup and rigor of corrolation between the $PM_{2.5}$ variable and Deaths: (1) We are not able to control for smoking, BMI, or hospital beds properly since they reduce the number of counties to ~1700, (2) The spatio-temporal dependency of the deaths based on different dates of contagion cause a lot of heterogeneity in the analysis, (3) Different model setups make the results less significant. 
+
+Looking at what we know about the impacts of long term exposure to $PM_{2.5}$, it isn't much of a reach to think that the hypothesis of the paper is valid, but this does not make the results robust. The argument for corrolation that is made has some validity, but the overall study does not show clear causality as the authors seem to conclude.

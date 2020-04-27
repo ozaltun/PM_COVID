@@ -1,0 +1,258 @@
+\PassOptionsToPackage{unicode=true}{hyperref} % options for packages loaded elsewhere
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provides euro and other symbols
+\else % if luatex or xelatex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage[]{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
+\usepackage{hyperref}
+\hypersetup{
+            pdftitle={A Commentary on Exposure to air pollution and COVID-19 mortality in the United States},
+            pdfborder={0 0 0},
+            breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{0}
+% Redefines (sub)paragraphs to behave more like sections
+\ifx\paragraph\undefined\else
+\let\oldparagraph\paragraph
+\renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+\let\oldsubparagraph\subparagraph
+\renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+% set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+
+
+\title{A Commentary on \emph{Exposure to air pollution and COVID-19 mortality
+in the United States}}
+\author{}
+\date{\vspace{-2.5em}}
+
+\begin{document}
+\maketitle
+
+This R notebook will detail a qualitative and quantitative review of the
+\emph{Exposure to air pollution and COVID-19 mortality in the United
+States} by Xiao Wu, Rachel C. Nethery, M. Benjamin Sabath, Danielle
+Braun, and Francesca Dominici. The paper studies the relationship
+between long-term \(PM_{2.5}\) exposure and COVID-19 deaths. The study
+uses uses county level COVID-19 data (deaths and cases), historical
+spatiotemporal \(PM_{2.5}\) data, as well as several other datasets that
+the authors use as control and FE variables.
+
+The authors use a zero-inflated negative binomial mixed model to
+estimate the relationship between \(PM_{2.5}\) and COVID-19 deaths. The
+results claim that an increase of 1\(\mu g/m^3\) of \(PM_{2.5}\) leads
+to a large increase in COVID-19 death rate. This is quite a significant
+claim, since it clearly states a causal relationship between long term
+\(PM_{2.5}\) exposure and increased likelihood of death from COVID-19.
+Professor Dominici was quoted by National Geographic that ``If you're
+getting COVID, and you have been breathing polluted air, it's really
+putting gasoline on a fire". The authors released all their code and the
+data they use for the analysis on a GitHub repository:
+\url{https://github.com/wxwx1993/PM_COVID} (yay to open source
+research!!).
+
+The single biggest problem with this paper in my opinion is that
+pollution is endogeneous, meaning it is corrolated with error, meaning
+it is corrolated with a host of variables that also have health
+implications. Controlling for confounding variables does not make the
+relationship causal. This is the reason for methods such as Instrumental
+Variables, Difference-in-Difference, Regression Discontinuity, and many
+others I am not familiar with. To be honest, I feel like I must be
+missing something, since the lead author on this paper, Professor
+Dominici is a well respected Statistician at Harvard's Biostatistics
+department. Surely, I am missing something on the validity of the study.
+
+The first place I looked was into what a zero-inflated negative binomial
+mixed model was, wondering if it was that did something smart about the
+endogeneity. Thanks to a friend, I found a book: Foundations of Linear
+and Generalized Linear Models by Alan Agresti, which had a nice
+introduction to such models. It is under the umbrella of count data that
+utilize Poisson distributions as their underlying distribution. One of
+the issues of using poisson distributions as underlying distributions is
+what is called overdispersion: the variance can often be larger then the
+median, but this is an issue since the poisson distribution had
+\(\mu = \sigma^2\). This leads to what are called Negative Binomial
+GLMs. (Give quick chat on negative binomials and Zero inflated negative
+binomials). (Conclude that this is not doing anything about
+endogeneity.)
+
+Now that I have made my argument for the fact that this is not a causal
+relationship, but one of correlation, I think that the results are still
+quite shocking. Such a significant an high correlation is still very
+interesting in my opinion. In this notebook, I will go over these
+results to see how robust they are. Initially, I will go over their
+models and equations and then I will abstract away from the
+zero-inflated negative binomial mixed model as my familiarity with it
+has been detailed above and I am not that familiar with its drawbacks
+and strengths. Finally, I will play around with the structure of the
+equation to what I think would be the correct setup.
+
+First, I have added a couple lines to the end of the preprocessing file
+to add some additional variables that will be used in the analysis (feel
+free to look at this on ozaltun/PM\_COVID - forked repository from
+wxwx1993).
+
+Now lets run the main analysis that the paper runs and look at the
+Estimate and the 95\% CI::
+
+\begin{verbatim}
+## 
+## Attaching package: 'nlme'
+\end{verbatim}
+
+\begin{verbatim}
+## The following object is masked from 'package:dplyr':
+## 
+##     collapse
+\end{verbatim}
+
+\begin{verbatim}
+## The following object is masked from 'package:lme4':
+## 
+##     lmList
+\end{verbatim}
+
+\begin{verbatim}
+## Computational iterations: 13 
+## Computational time: 0.019 minutes
+\end{verbatim}
+
+As shown in the paper, the correlation between \(PM_{2.5}\) in this
+setup is large and significant. One aspect I find to be misleading in
+this paper is that they discuss that they use data from 3088 counties,
+but don't mention how many counties their main analysis is run on:
+
+\begin{verbatim}
+## N:  1793
+\end{verbatim}
+
+1793 is much less then 3088\ldots{} So what is causing the loss of so
+many counties? It is the ``beds'', ``mean\_bmi'', and ``smoke\_rate''
+variables. When we run the analysis withouth them:
+
+\begin{verbatim}
+## Computational iterations: 15 
+## Computational time: 0.031 minutes
+\end{verbatim}
+
+The results are still significant, but sort of weird that our point
+estimate decreased when we took out three confounding variables. And now
+we aren't even controlling for beds, bmi, or smoke rate! When they run
+their robustness checks, they remove smoking + bmi OR beds, which
+increases the number of counties to approximately 2300. Still around 800
+short.
+
+Next, I would like to introduce some additional FEs and controls. Not
+sure how the ``glmm.zinb'' package works, but I would like to both
+control and cluster around state variables. Additionally, on top of
+population density, I am interested in transportation metrics that have
+shown to be correlated with COVID deaths. It is important to think of
+the dynamics of the COVID-19 deaths we are seeing. This analysis assumes
+the snapshot (CHECK WHAT THEY ARE DOING BY INCLUDING AN INITIAL DATASET)
+of COVID cases and deaths are a good variable, but it doesn't account
+for the temporal heterogeneity in when the virus might have started
+spreading in a location. This is definitely hard to capture, since
+testing is not perfect, but we can try to match the time variable by
+implementing two methods: (1) Use week of first death or week of first
+case as FE or (2) Use n-days after first death or first case as the y
+variable. For one of the regressions, we will also use
+deaths\_per\_capita as our y variable since it will capture the death
+rate better. I will use a FEs framework to do so as I am more familiar
+with, using the following general form for county i:
+
+\[ log(Deaths_i) = \beta_0 + \beta_1 PM_{2.5, i} + Controls_i + FEs_i + \epsilon_i\]
+\[ Deaths_i/pop_i = \beta_0 + \beta_1 PM_{2.5, i} + Controls_i + FEs_i + \epsilon_i\]
+Finally, I will change the structure of some of the variables: income
+and educations will be restructured into 5 bins, beds will be per
+capita. Below we run three regressions: (1) baseline regression similar
+to the setup in the study, (2) changing the y variable to be deaths per
+capita, (3) adding transportation variables.
+
+\% Table created by stargazer v.5.2.2 by Marek Hlavac, Harvard
+University. E-mail: hlavac at fas.harvard.edu \% Date and time: Sat, Apr
+18, 2020 - 14:32:20 \% Requires LaTeX packages: dcolumn
+
+\begin{table}[!htbp] \centering 
+  \caption{All counties} 
+  \label{} 
+\begin{tabular}{@{\extracolsep{-10pt}}lD{.}{.}{-6} D{.}{.}{-6} D{.}{.}{-6} } 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+ & \multicolumn{3}{c}{\textit{Dependent variable:}} \\ 
+\cline{2-4} 
+\\[-1.8ex] & \multicolumn{1}{c}{log(Deaths)} & \multicolumn{1}{c}{Deaths per Capita} & \multicolumn{1}{c}{log(Deaths)} \\ 
+\\[-1.8ex] & \multicolumn{1}{c}{(1)} & \multicolumn{1}{c}{(2)} & \multicolumn{1}{c}{(3)}\\ 
+\hline \\[-1.8ex] 
+ mean\_pm25 & 0.100881^{***} & 0.000009^{**} & 0.085336^{***} \\ 
+  & (0.027291) & (0.000004) & (0.023507) \\ 
+  & & & \\ 
+\hline \\[-1.8ex] 
+Observations & \multicolumn{1}{c}{1,793} & \multicolumn{1}{c}{1,793} & \multicolumn{1}{c}{1,793} \\ 
+R$^{2}$ & \multicolumn{1}{c}{0.684538} & \multicolumn{1}{c}{0.299251} & \multicolumn{1}{c}{0.723465} \\ 
+Adjusted R$^{2}$ & \multicolumn{1}{c}{0.670182} & \multicolumn{1}{c}{0.267362} & \multicolumn{1}{c}{0.710034} \\ 
+\hline 
+\hline \\[-1.8ex] 
+\textit{Note:}  & \multicolumn{3}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\end{tabular} 
+\end{table}
+
+To conclude, I would like to say that my issue is not with the
+Hypothesis. Looking at what we know about the impacts of long term
+exposure to \(PM_{2.5}\), it isn't much of a reach to come to this
+conclusion. My overall quarrell is with trying to make a case for it by
+using statistical methods that don't show the hypothesis to be true.
+Additionally, the amount of news coverage this paper has gotten even
+though it hasn't been peer reviewed is troubling. It troubles me that
+such an analysis can be done and the results are made to seem cristal
+clear, when to me, far from an expert, the conclusions made by this
+paper are questionable at the least. I hope I have made some error and
+that my lack of knowledge in a specific area has caused for such a
+confusion, but from experts I have spoken to, this doesn't seem likely.
+Such studies might gain traction in the short term for better long term
+air pollution policies, but I believe it truly hinders the long term
+goals that environmental studies is striving for by decreasing the
+credibility of academic research.
+
+\end{document}
