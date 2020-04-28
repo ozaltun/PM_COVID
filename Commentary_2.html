@@ -1664,7 +1664,7 @@ glmm.zinb.off = glmm.zinb(fixed = Deaths ~ mean_pm25 +scale(poverty) + scale(pop
                           + offset(log(population)), 
                           random = ~ 1 | state, data = (aggregate_pm_census_cdc_test_beds))</code></pre>
 <pre><code>## Computational iterations: 12 
-## Computational time: 0.027 minutes</code></pre>
+## Computational time: 0.028 minutes</code></pre>
 <p>We can look at the Estimate and the 95% CI of <span class="math inline">\(PM_{2.5}\)</span>:</p>
 <pre class="r"><code>intervals(glmm.zinb.off, level=0.95)$fixed[2,]</code></pre>
 <pre><code>##     lower      est.     upper 
@@ -2070,51 +2070,51 @@ for(date in time_series_columns){
   ub_list &lt;- c(ub_list, temp_list[3])
 }</code></pre>
 <pre><code>## Computational iterations: 18 
-## Computational time: 0.031 minutes 
-## Computational iterations: 17 
-## Computational time: 0.027 minutes 
+## Computational time: 0.038 minutes 
 ## Computational iterations: 17 
 ## Computational time: 0.027 minutes 
 ## Computational iterations: 17 
 ## Computational time: 0.028 minutes 
+## Computational iterations: 17 
+## Computational time: 0.028 minutes 
 ## Computational iterations: 16 
-## Computational time: 0.036 minutes 
-## Computational iterations: 15 
-## Computational time: 0.026 minutes 
+## Computational time: 0.024 minutes 
 ## Computational iterations: 15 
 ## Computational time: 0.025 minutes 
 ## Computational iterations: 15 
-## Computational time: 0.027 minutes 
-## Computational iterations: 14 
 ## Computational time: 0.022 minutes 
+## Computational iterations: 15 
+## Computational time: 0.023 minutes 
 ## Computational iterations: 14 
-## Computational time: 0.021 minutes 
+## Computational time: 0.019 minutes 
 ## Computational iterations: 14 
-## Computational time: 0.022 minutes 
+## Computational time: 0.02 minutes 
 ## Computational iterations: 14 
-## Computational time: 0.021 minutes 
+## Computational time: 0.02 minutes 
 ## Computational iterations: 14 
-## Computational time: 0.024 minutes 
-## Computational iterations: 13 
+## Computational time: 0.019 minutes 
+## Computational iterations: 14 
 ## Computational time: 0.02 minutes 
 ## Computational iterations: 13 
-## Computational time: 0.02 minutes 
+## Computational time: 0.018 minutes 
 ## Computational iterations: 13 
-## Computational time: 0.02 minutes 
+## Computational time: 0.018 minutes 
 ## Computational iterations: 13 
 ## Computational time: 0.019 minutes 
 ## Computational iterations: 13 
-## Computational time: 0.022 minutes 
+## Computational time: 0.017 minutes 
+## Computational iterations: 13 
+## Computational time: 0.019 minutes 
+## Computational iterations: 12 
+## Computational time: 0.017 minutes 
 ## Computational iterations: 12 
 ## Computational time: 0.018 minutes 
 ## Computational iterations: 12 
-## Computational time: 0.018 minutes 
-## Computational iterations: 12 
-## Computational time: 0.02 minutes 
+## Computational time: 0.017 minutes 
 ## Computational iterations: 11 
-## Computational time: 0.016 minutes 
+## Computational time: 0.014 minutes 
 ## Computational iterations: 11 
-## Computational time: 0.019 minutes</code></pre>
+## Computational time: 0.014 minutes</code></pre>
 <pre class="r"><code>time_series_estimate &lt;- data.frame(est = coef_list,
                                    lb = lb_list,
                                    ub = ub_list, 
