@@ -3,9 +3,9 @@ library("haven")
 library(stringr)
 library(RCurl)
 
-# TODO: Change PM2.5 to the one we created: Average PM as well as county weighted average
-# TODO: Add beds, smoke rate, and bmi...
-date_of_study = "04-26-2020"
+
+system2("/anaconda3/bin/python3", args="preprocessing_getting_first_week.py")
+date_of_study = "05-06-2020"
 # Historical data
 covid_hist = read.csv(text=getURL("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports/03-30-2020.csv"))
 covid_us_hist = subset(covid_hist, Country_Region == "US" & is.na(FIPS)==F)
@@ -31,7 +31,7 @@ county_temp = read.csv(text=getURL("https://raw.githubusercontent.com/wxwx1993/P
 county_census = read.csv(text=getURL("https://raw.githubusercontent.com/wxwx1993/PM_COVID/master/Data/census_county_interpolated.csv"))
 county_brfss = read.csv(text=getURL("https://raw.githubusercontent.com/wxwx1993/PM_COVID/master/Data/brfss_county_interpolated.csv"))
 
-state_test = read.csv(text=getURL("https://covidtracking.com/api/states/daily.csv"))
+state_test = read.csv(text=getURL("https://covidtracking.com/api/v1/states/daily.csv"))
 state_test = subset(state_test, date ==paste0(substring(str_remove_all(date_of_study, "-"),5,8),substring(str_remove_all(date_of_study, "-"),1,4)))[,-20]
 statecode = read.csv(text=getURL("https://raw.githubusercontent.com/wxwx1993/PM_COVID/master/Data/statecode.csv"))
 
@@ -46,7 +46,7 @@ county_base_mortality$older_pecent = county_base_mortality$older_Population/coun
 
 # merging data
 state_test = merge(state_test,statecode,by.x = "state" ,by.y = "Code" )
-
+state_test$totalTestResults <- state_test$positive + state_test$negative
 # pm average over 17 years
 county_pm_aggregated = county_pm %>% 
   group_by(fips) %>% 
@@ -99,11 +99,15 @@ aggregate_pm_census_cdc_test = aggregate_pm_census_cdc_test %>%
          totalTestResults_county = population_frac_county*totalTestResults)
 
 
-aggregate_pm_census_cdc_test_beds = merge(aggregate_pm_census_cdc_test,county_hospitals_aggregated,by.x = "fips",by.y = "COUNTYFIPS",all.x = T)
+aggregate_pm_census_cdc_test_beds = merge(aggregate_pm_census_cdc_test,county_hospitals_aggregated,by.x = "fips.x",by.y = "COUNTYFIPS",all.x = T)
 
 # transportation data
 transportation_data <- read_dta("/Users/ozaltun/Desktop/ACS_county.dta") %>% mutate(FIPS = as.integer(FIPS)) %>% dplyr::select(FIPS, WRK_Drive, WRK_PublicTransit, WRK_Bike, WRK_Walk, WRKHOME)
 
+# Preconditions
+preconditions_data <- read.csv("/Users/ozaltun/Dropbox (MIT)/Data/Health/county_health_ranking/county_health_ranking_mean.csv") %>% mutate(FIPS = as.integer(FIPS))
+# beds
+beds_data <- read.csv("/Users/ozaltun/Desktop/County_HCF+HospBeds.csv") %>% select(County.FIPS.code, ICU.Beds)
 
 # population weighted pm values
 
@@ -113,19 +117,28 @@ pm_weighted <- read.csv("/Users/ozaltun/Desktop/pm25_county_weighted_sum_2000_20
 
 df <- merge(aggregate_pm_census_cdc_test_beds, transportation_data, by.x = "fips", by.y="FIPS", all.x=T)
 df <- merge(df, pm_weighted, by.x="fips",by.y="fips", all.x=T)
-system2("/anaconda3/bin/python3", args="preprocessing_getting_first_week.py")
 first_date <- read.csv("Data/first_date.csv")
 
 df <- merge(df, first_date, by.x="fips",by.y="fips",all.x=T)
-
-df <- df %>% mutate(deaths_per_tests = Deaths/totalTestResults, 
+df <- merge(df, preconditions_data, by.x="fips", by.y="FIPS", all.x=T)
+df <- merge(df, beds_data, by.x="fips", by.y="County.FIPS.code", all.x=T)
+df <- df%>% rename(percent.smokers=Adult.smoking...Smokers, percent.obese=Adult.obesity...Obese, count.diabetic=Diabetic.screening...Diabetics) %>% 
+            mutate(percent.diabetic = count.diabetic/population,
+                    percent.uninsured = count.uninsured/population,
+                    share.drive = WRK_Drive/population,
+                    share.PublicTransit = WRK_PublicTransit/population,
+                    share.Bike = WRK_Bike/population,
+                    share.Walk = WRK_Walk/population,
+                    share.Home = WRKHOME/population,
+                    deaths_per_tests = Deaths/totalTestResults, 
                     deaths_per_capita = Deaths/population, 
                     tests_per_capita = totalTestResults/population,
                     beds_per_capita = beds/population,
                     income_bins = ntile(medhouseholdincome, 5),
                     education_bins = ntile(education, 5),
-                    popdensity_bins = ntile(popdensity, 20))
+                    popdensity_bins = ntile(popdensity, 10))
 df <- merge(df, df_historical, by.x="fips", by.y = "FIPS", all.x = T)
 df <- df[which(!(df$Deaths ==0 & df$first_death_date!="")),] # Some inconsistencies
 
 rm("df_historical", "first_date", "hospitals", "pm_weighted", "state_test","statecode","transportation_data","aggregate_pm", "aggregate_pm_census", "aggregate_pm_census_cdc","aggregate_pm_census_cdc_test","county_base_mortality","county_brfss", "county_brfss_aggregated","county_census","county_census_aggregated2","county_hospitals_aggregated","county_old_mortality","county_pm","county_pm_aggregated","county_temp","county_temp_aggregated","covid","covid_hist","covid_us","covid_us_hist", "covid_historical")
+rm("beds_data", "preconditions_data")
