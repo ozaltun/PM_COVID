@@ -1,11 +1,11 @@
-library("dplyr")
+library("tidyverse")
 library("haven")
 library(stringr)
 library(RCurl)
 
 
 system2("/anaconda3/bin/python3", args="preprocessing_getting_first_week.py")
-date_of_study = "05-06-2020"
+date_of_study = "05-20-2020"
 # Historical data
 covid_hist = read.csv(text=getURL("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports/03-30-2020.csv"))
 covid_us_hist = subset(covid_hist, Country_Region == "US" & is.na(FIPS)==F)
@@ -16,8 +16,7 @@ covid_us = subset(covid,Country_Region == "US" & is.na(FIPS)!=T)
 covid_us = rbind(covid_us,subset(covid_us_hist, (!(FIPS %in% covid_us$FIPS))  & Confirmed == 0 & Deaths == 0 & is.na(FIPS)==F))
 
 # Import historical 
-covid_historical <- read.csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv") %>%
-                    drop_na("FIPS")
+covid_historical <- read.csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv") %>% drop_na("FIPS")
 harvard_idx <- grep("X4.4.20", colnames(covid_historical))
 time_series_columns <- colnames(covid_historical)[-1:-(harvard_idx-1)]
 df_historical <- covid_historical[,c("FIPS", time_series_columns)]
@@ -105,15 +104,17 @@ aggregate_pm_census_cdc_test_beds = merge(aggregate_pm_census_cdc_test,county_ho
 transportation_data <- read_dta("/Users/ozaltun/Desktop/ACS_county.dta") %>% mutate(FIPS = as.integer(FIPS)) %>% dplyr::select(FIPS, WRK_Drive, WRK_PublicTransit, WRK_Bike, WRK_Walk, WRKHOME)
 
 # Preconditions
-preconditions_data <- read.csv("/Users/ozaltun/Dropbox (MIT)/Data/Health/county_health_ranking/county_health_ranking_mean.csv") %>% mutate(FIPS = as.integer(FIPS))
+preconditions_data <- read.csv("/Users/ozaltun/Dropbox (MIT)/Data/Health/county_health_ranking/county_health_ranking_updated.csv") %>% mutate(FIPS = as.integer(FIPS))
 # beds
-beds_data <- read.csv("/Users/ozaltun/Desktop/County_HCF+HospBeds.csv") %>% select(County.FIPS.code, ICU.Beds)
+beds_data <- read.csv("/Users/ozaltun/Desktop/County_HCF+HospBeds.csv") %>% dplyr::select(County.FIPS.code, ICU.Beds)
 
 # population weighted pm values
 
 pm_weighted <- read.csv("/Users/ozaltun/Desktop/pm25_county_weighted_sum_2000_2018.csv") %>% 
               mutate(fips = as.integer(state_fips*1000+county_fips)) %>% group_by(fips) %>% 
               summarise(weighted_mean_pm25 = mean(PM_weighted,na.rm = TRUE))
+
+names(aggregate_pm_census_cdc_test_beds)[1] <- "fips"
 
 df <- merge(aggregate_pm_census_cdc_test_beds, transportation_data, by.x = "fips", by.y="FIPS", all.x=T)
 df <- merge(df, pm_weighted, by.x="fips",by.y="fips", all.x=T)
@@ -124,21 +125,23 @@ df <- merge(df, preconditions_data, by.x="fips", by.y="FIPS", all.x=T)
 df <- merge(df, beds_data, by.x="fips", by.y="County.FIPS.code", all.x=T)
 df <- df%>% rename(percent.smokers=Adult.smoking...Smokers, percent.obese=Adult.obesity...Obese, count.diabetic=Diabetic.screening...Diabetics) %>% 
             mutate(percent.diabetic = count.diabetic/population,
-                    percent.uninsured = count.uninsured/population,
+                   percent.uninsured = count.uninsured/population,
+                   percent.ICU.Beds = ICU.Beds/population,
                     share.drive = WRK_Drive/population,
                     share.PublicTransit = WRK_PublicTransit/population,
                     share.Bike = WRK_Bike/population,
                     share.Walk = WRK_Walk/population,
                     share.Home = WRKHOME/population,
                     deaths_per_tests = Deaths/totalTestResults, 
-                    deaths_per_capita = Deaths/population, 
-                    tests_per_capita = totalTestResults/population,
+                    deaths_per_thousand = Deaths/population*1000,
                     beds_per_capita = beds/population,
                     income_bins = ntile(medhouseholdincome, 5),
-                    education_bins = ntile(education, 5),
-                    popdensity_bins = ntile(popdensity, 10))
+                    education_bins = ntile(education, 5))
 df <- merge(df, df_historical, by.x="fips", by.y = "FIPS", all.x = T)
 df <- df[which(!(df$Deaths ==0 & df$first_death_date!="")),] # Some inconsistencies
+df <- df %>% dplyr::select (-c(hash, dateChecked, Province_State, Admin2, Country_Region, Last_Update, Lat, Long_, Combined_Key, X.x, year.x, year.y, Population, date, lastUpdateEt, fips.y, X.y, ))
+df <- mutate( df, first_case_week_numeric = ifelse(first_case_week == "", 99, first_case_week))
 
+write.csv(df, paste0("/Users/ozaltun/Dropbox (MIT)/Data/Health/covid/",date_of_study,"_df.csv"))
 rm("df_historical", "first_date", "hospitals", "pm_weighted", "state_test","statecode","transportation_data","aggregate_pm", "aggregate_pm_census", "aggregate_pm_census_cdc","aggregate_pm_census_cdc_test","county_base_mortality","county_brfss", "county_brfss_aggregated","county_census","county_census_aggregated2","county_hospitals_aggregated","county_old_mortality","county_pm","county_pm_aggregated","county_temp","county_temp_aggregated","covid","covid_hist","covid_us","covid_us_hist", "covid_historical")
 rm("beds_data", "preconditions_data")
